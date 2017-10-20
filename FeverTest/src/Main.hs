@@ -23,33 +23,22 @@ import Network.HTTP.Simple
 import qualified Network.Socket as Sock
 import qualified Network.Socket.ByteString as SockBS
 
-import NGwords
-
-urlServer = "https://nico-thru-line-festival.herokuapp.com"
-
 udpAddress = "239.0.0.24"
 udpPort = "52460"
+
+defaultText = "あいうえお"
 
 type TheResponse = (Int, T.Text)
 
 main :: IO ()
 main = do
-  uri <- parseRequest $ urlServer ++ "/comment-reset"
-  httpLBS uri
-  loop 1
-  
-loop :: Int -> IO ()
-loop no = do
-  uri <- parseRequest $ urlServer ++ "/comment/?" ++ show no
-  res <- httpJSON uri :: IO (Response TheResponse)
-  f <- case getResponseBody res of
-    (0, text) -> do
-      when (not $ elem text ngWords) $ udpSend text
-      return (+1)
-    (1, _)    -> return id
-    (_, _)    -> die ("Error: no." ++ show no) >> return id
-  threadDelay $ 50 * 1000
-  loop $ f no
+  args <- getArgs
+  let
+    (n,txt) = case args of
+      m:[] -> (read m, defaultText) :: (Int, T.Text)
+      m:t:_ -> (read m, T.pack t)
+      _ -> (20, defaultText)
+  sequence_ $ replicate n $ udpSend txt >> threadDelay (50 * 10^3)
 
 udpSend :: T.Text -> IO ()
 udpSend text = do
